@@ -47,6 +47,32 @@ def create_invoice(request):
     return render(request, 'invoicing/create_invoice.html', {'form': form})
 
 @login_required
+def edit_invoice(request, pk):
+    invoice = get_object_or_404(Invoice, pk=pk, user=request.user)
+
+    if request.method == 'POST':
+        form = InvoiceForm(request.POST, instance=invoice)
+        if form.is_valid():
+            invoice = form.save(commit=False)
+            invoice.user = request.user
+            invoice.calculate_total()
+            invoice.save()
+            return redirect('dashboard')
+    else:
+        form = InvoiceForm(instance=invoice)
+
+    return render(request, 'invoicing/edit_invoice.html', {'form': form, 'invoice': invoice})
+
+@login_required
+def delete_invoice(request, pk):
+    invoice = get_object_or_404(Invoice, pk=pk, user=request.user)
+    if request.method == 'POST':
+        invoice.delete()
+        return redirect('dashboard')
+    return render(request, 'invoicing/delete_invoice.html', {'invoice': invoice})
+
+
+@login_required
 def contractors_dashboard(request):
     # Список контрагентов только текущего пользователя
     contractors = Contractor.objects.filter(owner=request.user).order_by('name')

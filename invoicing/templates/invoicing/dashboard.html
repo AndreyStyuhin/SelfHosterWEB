@@ -19,6 +19,10 @@
             <td>{{ invoice.date }}</td>
             <td>{{ invoice.total_amount }}</td>
             <td>{{ invoice.get_status_display }}</td>
+            <td>
+  <a href="{% url 'edit_invoice' invoice.pk %}" class="btn btn-sm btn-primary">✏️ Редактировать</a>
+  <a href="{% url 'delete_invoice' invoice.pk %}" class="btn btn-sm btn-danger">🗑️ Удалить</a>
+</td>
         </tr>
         {% endfor %}
     </tbody>

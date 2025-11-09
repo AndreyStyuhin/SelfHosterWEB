@@ -5,10 +5,11 @@ from .models import Invoice, Contractor
 class InvoiceForm(forms.ModelForm):
     class Meta:
         model = Invoice
-        fields = ['contractor', 'number', 'services']  # Добавьте другие поля по необходимости
+        fields = ['contractor', 'number', 'services']
         widgets = {
-            'services': forms.Textarea(attrs={'rows': 4}),  # Для JSON-поля, но лучше использовать JSONWidget если нужно
+            'services': forms.HiddenInput(),  # теперь скрытое поле
         }
+
 
 
 class ContractorForm(forms.ModelForm):

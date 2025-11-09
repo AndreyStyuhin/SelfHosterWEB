@@ -1,6 +1,6 @@
 {% extends 'invoicing/base.html' %}
 {% block content %}
-<h2>Создать счет</h2>
+<h2>Редактировать счет №{{ invoice.number }}</h2>
 
 <form method="post" id="invoiceForm">
     {% csrf_token %}
@@ -27,13 +27,7 @@
             </tr>
         </thead>
         <tbody id="services-body">
-            <tr>
-                <td><input type="text" class="desc" placeholder="Описание услуги" required></td>
-                <td><input type="number" class="qty" value="1" min="1" step="1"></td>
-                <td><input type="number" class="price" value="0" step="0.01"></td>
-                <td class="total">0</td>
-                <td><button type="button" class="remove-btn" onclick="removeRow(this)">✖</button></td>
-            </tr>
+            <!-- строки услуг добавятся скриптом -->
         </tbody>
     </table>
 
@@ -41,12 +35,32 @@
 
     <h4>Итого: <span id="grand-total">0.00</span> ₽</h4>
 
-    {{ form.services }}  <!-- скрытое JSON-поле -->
+    {{ form.services }}
 
-    <button type="submit" class="btn btn-success mt-3">Сохранить</button>
+    <button type="submit" class="btn btn-success mt-3">💾 Сохранить изменения</button>
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary mt-3">Назад</a>
 </form>
 
 <script>
+let existingServices = {{ form.instance.services|safe|default:"[]" }};
+
+function renderExistingRows() {
+    const tbody = document.getElementById("services-body");
+    existingServices.forEach(item => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td><input type="text" class="desc" value="${item.desc || ''}" required></td>
+            <td><input type="number" class="qty" value="${item.qty || 1}" min="1" step="1"></td>
+            <td><input type="number" class="price" value="${item.price || 0}" step="0.01"></td>
+            <td class="total">0</td>
+            <td><button type="button" class="remove-btn" onclick="removeRow(this)">✖</button></td>
+        `;
+        tbody.appendChild(row);
+    });
+    if (existingServices.length === 0) addRow();
+    updateTotals();
+}
+
 function updateTotals() {
     let grandTotal = 0;
     document.querySelectorAll("#services-body tr").forEach(row => {
@@ -77,14 +91,12 @@ function removeRow(btn) {
     updateTotals();
 }
 
-// обновление сумм при изменении qty/price
 document.getElementById("services-body").addEventListener("input", function(e) {
     if (e.target.classList.contains("qty") || e.target.classList.contains("price")) {
         updateTotals();
     }
 });
 
-// перед отправкой — собрать JSON и записать в скрытое поле
 document.getElementById("invoiceForm").addEventListener("submit", function(e) {
     const services = [];
     document.querySelectorAll("#services-body tr").forEach(row => {
@@ -95,6 +107,8 @@ document.getElementById("invoiceForm").addEventListener("submit", function(e) {
     });
     document.getElementById("id_services").value = JSON.stringify(services);
 });
+
+document.addEventListener("DOMContentLoaded", renderExistingRows);
 </script>
 
 {% endblock %}

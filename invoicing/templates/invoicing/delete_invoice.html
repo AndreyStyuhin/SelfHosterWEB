@@ -1,0 +1,12 @@
+{% extends 'invoicing/base.html' %}
+{% block content %}
+<h2>Удалить счет №{{ invoice.number }}</h2>
+
+<p>Вы действительно хотите удалить счет №<strong>{{ invoice.number }}</strong> от {{ invoice.date }}?</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">🗑️ Удалить</button>
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Отмена</a>
+</form>
+{% endblock %}

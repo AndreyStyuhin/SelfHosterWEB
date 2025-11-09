@@ -98,8 +98,16 @@ class Invoice(models.Model):
         return f"Счет №{self.number} от {self.date}"
 
     def calculate_total(self):
-        total = sum(item.get('qty', 0) * item.get('price', 0) for item in self.services)
-        self.total_amount = total
+        if isinstance(self.services, list):
+            total = sum(
+                (item.get('qty', 0) * item.get('price', 0))
+                for item in self.services
+                if isinstance(item, dict)
+            )
+            self.total_amount = total
+        else:
+            self.total_amount = 0
+
 
 class Check(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
