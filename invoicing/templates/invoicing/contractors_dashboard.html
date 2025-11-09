@@ -1,0 +1,35 @@
+{% extends 'invoicing/base.html' %}
+{% block content %}
+<h2>Справочник контрагентов</h2>
+<a href="{% url 'create_contractor' %}" class="btn btn-primary mb-3">Добавить контрагента</a>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Наименование</th>
+            <th>ИНН</th>
+            <th>КПП</th>
+            <th>Адрес</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for contractor in contractors %}
+        <tr>
+            <td>{{ contractor.name }}</td>
+            <td>{{ contractor.inn }}</td>
+            <td>{{ contractor.kpp|default:"—" }}</td>
+            <td>{{ contractor.legal_address|truncatechars:50 }}</td>
+            <td>
+                <a href="{% url 'edit_contractor' contractor.pk %}" class="btn btn-sm btn-warning">Редактировать</a>
+                <a href="{% url 'delete_contractor' contractor.pk %}" class="btn btn-sm btn-danger">Удалить</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">Нет контрагентов. Добавьте первого!</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{% url 'dashboard' %}" class="btn btn-secondary">Вернуться к счетам</a>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends 'invoicing/base.html' %}
+{% block content %}
+<h2>Добавить контрагента</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-success">Сохранить</button>
+</form>
+<a href="{% url 'contractors_dashboard' %}" class="btn btn-secondary">Отмена</a>
+{% endblock %}

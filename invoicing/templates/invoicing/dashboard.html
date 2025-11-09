@@ -1,0 +1,45 @@
+{% extends 'invoicing/base.html' %}
+{% block content %}
+<h2>Ваш дашборд: Счета</h2>
+<a href="{% url 'create_invoice' %}" class="btn btn-primary mb-3">Создать новый счет</a>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Номер</th>
+            <th>Дата</th>
+            <th>Сумма</th>
+            <th>Статус</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for invoice in invoices %}
+        <tr>
+            <td>{{ invoice.number }}</td>
+            <td>{{ invoice.date }}</td>
+            <td>{{ invoice.total_amount }}</td>
+            <td>{{ invoice.get_status_display }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <h5>Аналитика: Сумма по месяцам</h5>
+        <div id="chartContainer" style="height: 370px; width: 100%;"></div>
+    </div>
+</div>
+
+<script>
+window.onload = function () {
+    var chart = new CanvasJS.Chart("chartContainer", {
+        animationEnabled: true,
+        theme: "light2",
+        title: { text: "Сумма счетов по месяцам" },
+        data: [{ type: "column", dataPoints: {{ datapoints|safe }} }]
+    });
+    chart.render();
+}
+</script>
+{% endblock %}
