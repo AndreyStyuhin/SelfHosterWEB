@@ -1,7 +1,7 @@
-# (Предполагается, что вы используете встроенную User от Django)
 from django.db import models
 from django.conf import settings
 from cryptography.fields import EncryptedCharField
+
 
 class UserProfile(models.Model):
     user = models.OneToOneField(
@@ -64,7 +64,7 @@ class Invoice(models.Model):
         DRAFT = 'DRAFT', 'Черновик'
         UNPAID = 'UNPAID', 'Неоплачен'
         PAID = 'PAID', 'Оплачен'
-        ISSUED = 'ISSUED', 'Чек выдан' # <-- НАШ НОВЫЙ СТАТУС
+        ISSUED = 'ISSUED', 'Чек выдан'
         CANCELLED = 'CANCELLED', 'Отменен'
 
     # К кому относится
@@ -133,9 +133,9 @@ class Receipt(models.Model):
     )
 
     # Данные из ФНС
-    fns_id = models.CharField(max_length=255, unique=True, db_index=True) # Уникальный ID чека из ФНС
+    fns_id = models.CharField(max_length=255, unique=True, db_index=True)  # Уникальный ID чека из ФНС
     check_link = models.URLField(max_length=500)
-    receipt_data = models.JSONField() # Полный JSON-ответ от ФНС
+    receipt_data = models.JSONField()  # Полный JSON-ответ от ФНС
 
     # Данные для мэтчинга (дублируем для быстрого поиска)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)

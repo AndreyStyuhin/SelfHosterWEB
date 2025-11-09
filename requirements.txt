@@ -1,0 +1,11 @@
+asgiref==3.10.0
+cffi==2.0.0
+cryptography==46.0.3
+Django==5.2.8
+fields==5.0.0
+flake8==7.3.0
+mccabe==0.7.0
+pycodestyle==2.14.0
+pycparser==2.23
+pyflakes==3.4.0
+sqlparse==0.5.3
