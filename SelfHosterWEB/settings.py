@@ -8,6 +8,10 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv  # Импортируем библиотеку
+
+# Загружаем переменные из .env файла
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent  # Должно указывать на ~/PycharmProjects/SelfHosterWEB
@@ -16,13 +20,16 @@ STATICFILES_DIRS = [BASE_DIR / 'invoicing/static']  # Теперь путь бу
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-wiz3o(1_39^9eql*5v7g=v^vcd1v&+89*iyx=%sn^8fu$q7$f_'
+# 1. Секретный ключ
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# 2. Режим отладки
+# Переменные окружения всегда строки, поэтому сравниваем со строкой 'True'
+DEBUG = os.getenv('DEBUG') == 'True'
 
-ALLOWED_HOSTS = []
+# 3. Разрешенные хосты
+# Превращаем строку "host1,host2" в список ['host1', 'host2']
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1').split(',')
 
 # Application definition
 INSTALLED_APPS = [
@@ -120,3 +127,6 @@ CELERY_RESULT_SERIALIZER = 'json'
 
 # Для django-cryptography (ключ для шифрования; в продакшене — секретный)
 ENCRYPTED_FIELDS_KEY = b'base64_encoded_fernet_key_here=='  # Сгенерировать реальный ключ
+
+# 4. В конце файла или где у вас была переменная DaData
+DADATA_API_KEY = os.getenv('DADATA_API_KEY')

@@ -5,6 +5,7 @@ from .views import dashboard, create_invoice
 from .views import (
     contractors_dashboard, create_contractor, edit_contractor, delete_contractor
 )
+from .views import get_organization_info # Не забудьте импортировать
 
 urlpatterns = [
     path('dashboard/', dashboard, name='dashboard'),
@@ -15,4 +16,5 @@ urlpatterns = [
     path('contractors/<int:pk>/delete/', delete_contractor, name='delete_contractor'),
     path('invoices/<int:pk>/edit/', views.edit_invoice, name='edit_invoice'),
     path('invoices/<int:pk>/delete/', views.delete_invoice, name='delete_invoice'),
+    path('api/get-org-info/', get_organization_info, name='get_org_info'),
 ]

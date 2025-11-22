@@ -1,4 +1,5 @@
 {% extends 'invoicing/base.html' %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center">
     <h2>Редактировать счёт №{{ invoice.number }}</h2>
@@ -7,6 +8,7 @@
 
 <form method="post" id="invoiceForm" class="mt-4">
     {% csrf_token %}
+
     <div class="mb-3">
         <label class="form-label">Контрагент:</label>
         {{ form.contractor }}
@@ -27,10 +29,14 @@
             {% if form.initial.services %}
                 {% for s in form.initial.services %}
                     <tr>
-                        <td><input type="text" class="form-control desc" value="{{ s.name|default:s.description }}" /></td>
+                        <td>
+                            <input type="text" class="form-control desc"
+                                   value="{{ s.name|default:'' }}" />
+                        </td>
                         <td><input type="number" class="form-control qty" value="{{ s.qty }}" min="1" /></td>
                         <td><input type="number" class="form-control price" value="{{ s.price }}" min="0" step="0.01" /></td>
-                        <td class="align-middle text-end"><span class="sum">{{ s.qty|floatformat:2|add:s.price|floatformat:2 }}</span> ₽</td> <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove">✖</button></td>
+                        <td class="align-middle text-end"><span class="sum">{{ s.qty|floatformat:2|add:s.price|floatformat:2 }}</span> ₽</td>
+                        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove">✖</button></td>
                     </tr>
                 {% endfor %}
             {% else %}
@@ -79,27 +85,38 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateSums() {
         let total = 0;
         const rows = table.querySelectorAll('tbody tr');
+
         rows.forEach(row => {
             const qty = parseFloat(row.querySelector('.qty').value) || 0;
             const price = parseFloat(row.querySelector('.price').value) || 0;
             const sum = qty * price;
-            row.querySelector('.sum').innerText = sum.toFixed(2);
+
+            const sumField = row.querySelector('.sum');
+            if (sumField) {
+                sumField.innerText = sum.toFixed(2);
+            }
             total += sum;
         });
+
         totalField.innerText = total.toFixed(2);
-        // Обновляем скрытое поле при каждом изменении, чтобы не делать это только при сабмите
-        // Но лучше при сабмите. В данном примере совместим логику JS из Create.
     }
 
     // Синхронизация JSON перед отправкой
     document.getElementById("invoiceForm").addEventListener("submit", function(e) {
         const data = [];
         table.querySelectorAll('tbody tr').forEach(row => {
-            data.push({
-                name: row.querySelector('.desc').value,
-                qty: parseFloat(row.querySelector('.qty').value),
-                price: parseFloat(row.querySelector('.price').value)
-            });
+            const descInput = row.querySelector('.desc');
+            const qtyInput = row.querySelector('.qty');
+            const priceInput = row.querySelector('.price');
+
+            // Проверка на существование элементов (защита от ошибок удаления)
+            if (descInput && qtyInput && priceInput) {
+                data.push({
+                    name: descInput.value,
+                    qty: parseFloat(qtyInput.value) || 0,
+                    price: parseFloat(priceInput.value) || 0
+                });
+            }
         });
         textarea.value = JSON.stringify(data);
     });
@@ -124,8 +141,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     table.addEventListener('click', function(e) {
         if (e.target.classList.contains('remove')) {
-            if (table.querySelectorAll('tbody tr').length > 1) {
+            const rows = table.querySelectorAll('tbody tr');
+            // Разрешаем удаление, даже если строка одна (можно оставить пустую)
+            // Или можно блокировать, если rows.length > 1. Логика на ваше усмотрение.
+            if (rows.length > 1) {
                 e.target.closest('tr').remove();
+                updateSums();
+            } else {
+                // Если строка одна, просто очищаем её
+                const row = e.target.closest('tr');
+                row.querySelector('.desc').value = '';
+                row.querySelector('.qty').value = 1;
+                row.querySelector('.price').value = 0;
                 updateSums();
             }
         }
