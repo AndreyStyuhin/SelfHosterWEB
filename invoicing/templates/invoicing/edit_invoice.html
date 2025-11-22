@@ -1,114 +1,137 @@
 {% extends 'invoicing/base.html' %}
 {% block content %}
-<h2>Редактировать счет №{{ invoice.number }}</h2>
+<div class="d-flex justify-content-between align-items-center">
+    <h2>Редактировать счёт №{{ invoice.number }}</h2>
+    <span class="badge bg-secondary fs-6">{{ invoice.get_status_display }}</span>
+</div>
 
-<form method="post" id="invoiceForm">
+<form method="post" id="invoiceForm" class="mt-4">
     {% csrf_token %}
-
     <div class="mb-3">
-        {{ form.contractor.label_tag }}<br>
+        <label class="form-label">Контрагент:</label>
         {{ form.contractor }}
     </div>
 
-    <div class="mb-3">
-        {{ form.number.label_tag }}<br>
-        {{ form.number }}
-    </div>
-
-    <h4>Позиции счета</h4>
-    <table id="services-table" border="1" style="width:100%; border-collapse: collapse;">
-        <thead>
+    <h4>Позиции счёта</h4>
+    <table class="table table-bordered" id="servicesTable">
+        <thead class="table-light">
             <tr>
                 <th>Описание</th>
-                <th>Кол-во</th>
-                <th>Цена</th>
-                <th>Сумма</th>
-                <th></th>
+                <th style="width: 120px;">Кол-во</th>
+                <th style="width: 150px;">Цена</th>
+                <th style="width: 150px;">Сумма</th>
+                <th style="width: 50px;"></th>
             </tr>
         </thead>
-        <tbody id="services-body">
-            <!-- строки услуг добавятся скриптом -->
+        <tbody id="servicesBody">
+            {% if form.initial.services %}
+                {% for s in form.initial.services %}
+                    <tr>
+                        <td><input type="text" class="form-control desc" value="{{ s.name|default:s.description }}" /></td>
+                        <td><input type="number" class="form-control qty" value="{{ s.qty }}" min="1" /></td>
+                        <td><input type="number" class="form-control price" value="{{ s.price }}" min="0" step="0.01" /></td>
+                        <td class="align-middle text-end"><span class="sum">{{ s.qty|floatformat:2|add:s.price|floatformat:2 }}</span> ₽</td> <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove">✖</button></td>
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td><input type="text" class="form-control desc" placeholder="Описание услуги" /></td>
+                    <td><input type="number" class="form-control qty" value="1" min="1" /></td>
+                    <td><input type="number" class="form-control price" value="0" min="0" step="0.01" /></td>
+                    <td class="sum">0</td>
+                    <td><button type="button" class="remove">✖</button></td>
+                </tr>
+            {% endif %}
         </tbody>
     </table>
 
-    <button type="button" onclick="addRow()">➕ Добавить строку</button>
+    <button type="button" id="addRow" class="btn btn-outline-primary btn-sm">➕ Добавить строку</button>
 
-    <h4>Итого: <span id="grand-total">0.00</span> ₽</h4>
+    <div class="row mt-3 justify-content-end">
+        <div class="col-md-4 text-end">
+            <h4>Итого: <span id="total">0.00</span> ₽</h4>
+        </div>
+    </div>
 
-    {{ form.services }}
+    {{ form.services }}  {# скрытое JSON-поле #}
 
-    <button type="submit" class="btn btn-success mt-3">💾 Сохранить изменения</button>
-    <a href="{% url 'dashboard' %}" class="btn btn-secondary mt-3">Назад</a>
+    <div class="mt-4 d-flex justify-content-between border-top pt-3">
+        <a href="{% url 'delete_invoice' invoice.id %}" class="btn btn-danger">🗑️ Удалить счёт</a>
+
+        <div class="d-flex gap-2">
+            <button type="submit" name="save_draft" class="btn btn-secondary">
+                📂 В черновики
+            </button>
+            <button type="submit" name="save_unpaid" class="btn btn-success">
+                🚀 Выставить (Не оплачен)
+            </button>
+        </div>
+    </div>
 </form>
 
 <script>
-let existingServices = {{ form.instance.services|safe|default:"[]" }};
+document.addEventListener('DOMContentLoaded', function() {
+    const table = document.getElementById('servicesTable');
+    const totalField = document.getElementById('total');
+    const textarea = document.getElementById('{{ form.services.id_for_label }}');
+    const addBtn = document.getElementById('addRow');
 
-function renderExistingRows() {
-    const tbody = document.getElementById("services-body");
-    existingServices.forEach(item => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-            <td><input type="text" class="desc" value="${item.desc || ''}" required></td>
-            <td><input type="number" class="qty" value="${item.qty || 1}" min="1" step="1"></td>
-            <td><input type="number" class="price" value="${item.price || 0}" step="0.01"></td>
-            <td class="total">0</td>
-            <td><button type="button" class="remove-btn" onclick="removeRow(this)">✖</button></td>
-        `;
-        tbody.appendChild(row);
-    });
-    if (existingServices.length === 0) addRow();
-    updateTotals();
-}
-
-function updateTotals() {
-    let grandTotal = 0;
-    document.querySelectorAll("#services-body tr").forEach(row => {
-        const qty = parseFloat(row.querySelector(".qty").value) || 0;
-        const price = parseFloat(row.querySelector(".price").value) || 0;
-        const total = qty * price;
-        row.querySelector(".total").innerText = total.toFixed(2);
-        grandTotal += total;
-    });
-    document.getElementById("grand-total").innerText = grandTotal.toFixed(2);
-}
-
-function addRow() {
-    const tbody = document.getElementById("services-body");
-    const newRow = document.createElement("tr");
-    newRow.innerHTML = `
-        <td><input type="text" class="desc" placeholder="Описание услуги" required></td>
-        <td><input type="number" class="qty" value="1" min="1" step="1"></td>
-        <td><input type="number" class="price" value="0" step="0.01"></td>
-        <td class="total">0</td>
-        <td><button type="button" class="remove-btn" onclick="removeRow(this)">✖</button></td>
-    `;
-    tbody.appendChild(newRow);
-}
-
-function removeRow(btn) {
-    btn.closest("tr").remove();
-    updateTotals();
-}
-
-document.getElementById("services-body").addEventListener("input", function(e) {
-    if (e.target.classList.contains("qty") || e.target.classList.contains("price")) {
-        updateTotals();
+    function updateSums() {
+        let total = 0;
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const qty = parseFloat(row.querySelector('.qty').value) || 0;
+            const price = parseFloat(row.querySelector('.price').value) || 0;
+            const sum = qty * price;
+            row.querySelector('.sum').innerText = sum.toFixed(2);
+            total += sum;
+        });
+        totalField.innerText = total.toFixed(2);
+        // Обновляем скрытое поле при каждом изменении, чтобы не делать это только при сабмите
+        // Но лучше при сабмите. В данном примере совместим логику JS из Create.
     }
-});
 
-document.getElementById("invoiceForm").addEventListener("submit", function(e) {
-    const services = [];
-    document.querySelectorAll("#services-body tr").forEach(row => {
-        const desc = row.querySelector(".desc").value.trim();
-        const qty = parseFloat(row.querySelector(".qty").value) || 0;
-        const price = parseFloat(row.querySelector(".price").value) || 0;
-        services.push({desc, qty, price});
+    // Синхронизация JSON перед отправкой
+    document.getElementById("invoiceForm").addEventListener("submit", function(e) {
+        const data = [];
+        table.querySelectorAll('tbody tr').forEach(row => {
+            data.push({
+                name: row.querySelector('.desc').value,
+                qty: parseFloat(row.querySelector('.qty').value),
+                price: parseFloat(row.querySelector('.price').value)
+            });
+        });
+        textarea.value = JSON.stringify(data);
     });
-    document.getElementById("id_services").value = JSON.stringify(services);
+
+    addBtn.addEventListener('click', function() {
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+            <td><input type="text" class="form-control desc" placeholder="Описание услуги" /></td>
+            <td><input type="number" class="form-control qty" value="1" min="1" /></td>
+            <td><input type="number" class="form-control price" value="0" min="0" step="0.01" /></td>
+            <td class="align-middle text-end"><span class="sum">0.00</span> ₽</td>
+            <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove">✖</button></td>
+        `;
+        table.querySelector('tbody').appendChild(newRow);
+    });
+
+    table.addEventListener('input', function(e) {
+        if (e.target.classList.contains('qty') || e.target.classList.contains('price')) {
+            updateSums();
+        }
+    });
+
+    table.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove')) {
+            if (table.querySelectorAll('tbody tr').length > 1) {
+                e.target.closest('tr').remove();
+                updateSums();
+            }
+        }
+    });
+
+    updateSums();
 });
-
-document.addEventListener("DOMContentLoaded", renderExistingRows);
 </script>
-
 {% endblock %}

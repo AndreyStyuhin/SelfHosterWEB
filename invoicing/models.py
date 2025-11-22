@@ -79,6 +79,17 @@ class Invoice(models.Model):
         default=InvoiceStatus.DRAFT,
         db_index=True
     )
+    def save(self, *args, **kwargs):
+        # Автоматическая генерация номера только при создании
+        if not self.pk and not self.number:
+            last_invoice = Invoice.objects.filter(user=self.user).order_by('-number').first()
+            if last_invoice and last_invoice.number.isdigit():
+                next_num = int(last_invoice.number) + 1
+            else:
+                next_num = 1
+            self.number = f"{next_num:04d}"  # например, 0001, 0002, 0003
+        super().save(*args, **kwargs)
+
     total_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
