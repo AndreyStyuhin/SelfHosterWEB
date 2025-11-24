@@ -1,10 +1,10 @@
 ## File: invoicing/fns_api.py
 import json
-
 import requests
 import logging
 from datetime import timedelta, datetime
 from django.utils import timezone
+
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,7 @@ class FNSService:
         Возвращает кортеж (invoice_id, invoice_url).
         """
         url = f"{self.BASE_URL}/invoice"
+        payment_datetime = timezone.localtime(timezone.now() + timedelta(days=3))
 
         # Формируем список позиций в формате ФНС
         items = []
@@ -64,14 +65,15 @@ class FNSService:
 
         payload = {
             "invoiceNumber": invoice.number,
+            # 2. Используем isoformat() для правильного вывода таймзоны
+            "paymentDate": payment_datetime.strftime("%Y-%m-%dT%H:%M:%S%z"),
             "invoiceDate": invoice.date.strftime("%Y-%m-%d"),
-            # Дата платежа (обязательна для JSON, поставим +3 дня или текущую)
-            "paymentDate": (timezone.now() + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%S+09:00"),
             "currency": "RUB",
+            "paymentType": "LEGAL_ENTITY",
             "totalAmount": float(invoice.total_amount),
             "client": client,
             "items": items,
-            "description": f"Счет №{invoice.number} от {invoice.date.strftime('%d.%m.%Y')}"
+            # "description": f"Счет №{invoice.number} от {invoice.date.strftime('%d.%m.%Y')}"
         }
 
         logger.info(f"FNS Payload for {invoice.number}: {json.dumps(payload, indent=2)}")

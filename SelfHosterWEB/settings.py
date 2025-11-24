@@ -107,7 +107,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 LANGUAGE_CODE = 'ru-ru'
-TIME_ZONE = 'Europe/Moscow'
+TIME_ZONE = 'Asia/Chita'
 USE_I18N = True
 USE_TZ = True
 
@@ -131,3 +131,40 @@ ENCRYPTED_FIELDS_KEY = b'base64_encoded_fernet_key_here=='  # Сгенериро
 
 # 4. В конце файла или где у вас была переменная DaData
 DADATA_API_KEY = os.getenv('DADATA_API_KEY')
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        # Настройка для вашего приложения, чтобы выводить INFO-сообщения
+        'invoicing.fns_api': {
+            'handlers': ['console'],
+            # Установите уровень DEBUG или INFO, чтобы видеть лог
+            'level': 'INFO',
+            'propagate': True,
+        },
+        # Общая настройка для всего Django (если нужно)
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    }
+}

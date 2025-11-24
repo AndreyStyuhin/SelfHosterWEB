@@ -73,7 +73,7 @@ class Invoice(models.Model):
     def save(self, *args, **kwargs):
         if not self.pk and not self.number:
             # Простая генерация, основная логика в views
-            pass
+            pass 
         super().save(*args, **kwargs)
 
     def calculate_total(self):
