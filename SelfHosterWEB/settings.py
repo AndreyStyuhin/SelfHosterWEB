@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'invoicing',  # Добавлено приложение с моделями и тестами
     'django_cryptography',  # Для шифрования полей
+    'users',
 ]
 
 MIDDLEWARE = [

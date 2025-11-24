@@ -1,3 +1,4 @@
+## File: invoicing/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Sum
 from django.db.models.functions import ExtractYear, ExtractMonth
@@ -10,6 +11,9 @@ import json
 from .models import Contractor, Invoice
 from .forms import ContractorForm, InvoiceForm
 from .utils import get_next_invoice_number
+# Импорт нашего нового сервиса
+from .fns_api import FNSService, FNSIntegrationError
+
 from django.http import JsonResponse
 from django.conf import settings
 from dadata import Dadata
@@ -65,6 +69,9 @@ def create_invoice(request):
             invoice.user = request.user
             invoice.calculate_total()
 
+            # Флаг, нужно ли отправлять в ФНС
+            need_fns_registration = False
+
             # --- ЛОГИКА СТАТУСОВ ---
             if 'save_draft' in request.POST:
                 invoice.status = Invoice.InvoiceStatus.DRAFT
@@ -72,6 +79,7 @@ def create_invoice(request):
             elif 'save_unpaid' in request.POST:
                 invoice.status = Invoice.InvoiceStatus.UNPAID
                 success_msg = f"Счёт выставлен и ожидает оплаты."
+                need_fns_registration = True
             else:
                 # Fallback
                 invoice.status = Invoice.InvoiceStatus.DRAFT
@@ -92,14 +100,21 @@ def create_invoice(request):
                     continue
 
             if saved:
-                messages.success(request, success_msg)
+                # Если сохранение прошло успешно и нужно отправить в ФНС
+                if need_fns_registration:
+                    _register_invoice_in_fns(request, invoice)
+                    # Обновляем текст сообщения, если были ошибки они добавятся в messages внутри функции
+                    if not messages.get_messages(request):
+                        messages.success(request, success_msg + " Зарегистрировано в ФНС.")
+                else:
+                    messages.success(request, success_msg)
+
                 return redirect('dashboard')
             else:
                 form.add_error(None, "Не удалось создать счёт (ошибка уникальности номера). Попробуйте снова.")
     else:
         form = InvoiceForm(user=request.user)
 
-    # Передаем next_number и для GET, и для POST (если форма невалидна)
     return render(request, 'invoicing/create_invoice.html', {
         'form': form,
         'next_number': get_next_invoice_number(request.user)
@@ -117,20 +132,30 @@ def edit_invoice(request, pk):
             invoice.user = request.user
             invoice.calculate_total()
 
+            need_fns_registration = False
+
             # --- ЛОГИКА СТАТУСОВ ---
             if 'save_draft' in request.POST:
                 invoice.status = Invoice.InvoiceStatus.DRAFT
             elif 'save_unpaid' in request.POST:
+                # Если уже был зарегистрирован в ФНС, повторно не отправляем (или нужна логика обновления)
+                if invoice.status != Invoice.InvoiceStatus.UNPAID or not invoice.fns_invoice_id:
+                    need_fns_registration = True
                 invoice.status = Invoice.InvoiceStatus.UNPAID
 
             invoice.save()
-            messages.success(request, "Счёт обновлен.")
+
+            if need_fns_registration:
+                _register_invoice_in_fns(request, invoice)
+                messages.success(request, "Счёт обновлен и отправлен в ФНС.")
+            else:
+                messages.success(request, "Счёт обновлен.")
+
             return redirect('dashboard')
     else:
-        # 🔥 НОРМАЛИЗАЦИЯ services (desc → name) для старых записей
+        # 🔥 НОРМАЛИЗАЦИЯ services
         try:
             services_data = invoice.services
-            # Если вдруг в базе строка вместо списка (бывает при миграциях)
             if isinstance(services_data, str):
                 services_data = json.loads(services_data)
         except Exception:
@@ -141,7 +166,6 @@ def edit_invoice(request, pk):
                 if isinstance(s, dict) and "desc" in s and "name" not in s:
                     s["name"] = s["desc"]
 
-        # Записываем нормализованные данные в initial формы
         initial = {"services": services_data}
         form = InvoiceForm(instance=invoice, user=request.user, initial=initial)
 
@@ -149,6 +173,27 @@ def edit_invoice(request, pk):
         'form': form,
         'invoice': invoice
     })
+
+
+def _register_invoice_in_fns(request, invoice):
+    """
+    Вспомогательная функция для регистрации счета в ФНС.
+    Не прерывает работу приложения при ошибке, а выводит предупреждение.
+    """
+    try:
+        fns_service = FNSService(request.user)
+        fns_id, fns_url = fns_service.create_invoice(invoice)
+
+        # Обновляем данные счета
+        invoice.fns_invoice_id = fns_id
+        if fns_url:
+            invoice.fns_invoice_url = fns_url
+        invoice.save(update_fields=['fns_invoice_id', 'fns_invoice_url'])
+
+    except FNSIntegrationError as e:
+        messages.warning(request, f"Счёт сохранен локально, но произошла ошибка ФНС: {e}")
+    except Exception as e:
+        messages.warning(request, f"Ошибка при соединении с модулем ФНС: {e}")
 
 
 @login_required
@@ -221,21 +266,18 @@ def get_organization_info(request):
 
     try:
         dadata = Dadata(settings.DADATA_API_KEY)
-        # find_by_id ищет и по ИНН
         result = dadata.find_by_id("party", inn)
 
         if not result:
             return JsonResponse({'error': 'Организация не найдена'}, status=404)
 
         data = result[0]['data']
-        value = result[0]['value']  # Полное наименование или краткое одной строкой
+        value = result[0]['value']
 
-        # Собираем ответ
         response_data = {
-            'name': value,  # Или data['name']['short_with_opf'] если нужно краткое
-            'kpp': data.get('kpp', ''),  # У ИП нет КПП
+            'name': value,
+            'kpp': data.get('kpp', ''),
             'legal_address': data['address']['value'] if 'address' in data else '',
-            # Можно добавить ОГРН, директора и т.д., если расширите модель
         }
 
         return JsonResponse(response_data)
